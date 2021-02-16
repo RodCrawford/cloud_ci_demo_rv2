@@ -1,0 +1,78 @@
+# This is a basic workflow to help you get started with Actions on more complex CMSIS projects
+
+name: CMSIS_RV2 Project CI
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "ci_build_and_test_cmsis_rv2"
+  ci_build_and_test_cmsis_rv2:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        with: 
+          repository: Arm-Debug/cloud_ci_demo_rv2
+          path: cloud_ci_demo
+
+      - name: Install xsltproc
+        run: sudo apt-get install xsltproc
+  
+      #- name: Login to Docker Hub (not necessary for public images)
+      #  uses: docker/login-action@v1 
+      #  with:
+      #    username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #    password: ${{ secrets.DOCKERHUB_TOKEN }}  
+
+      - name: Create Container from Image
+        run : docker run -i -v ${{ github.workspace }}:/workspace/host --mac-address="00:02:F7:FF:55:55" --name testcontainer -d armmcutools/cmsis_tools_m55:latest 
+           
+      - name: Build CMSIS-RTOS2 Validation Project
+        run : |
+          docker exec testcontainer cp_install.sh /workspace/host/cloud_ci_demo/rtx5_rv2/packs.txt
+          docker exec testcontainer cbuild.sh /workspace/host/cloud_ci_demo/rtx5_rv2/CMSIS_RV2.Debug.cprj        
+
+      - name: Execute CMSIS-RTOS2 Validation Tests
+        run : |
+          set -o pipefail
+          docker exec testcontainer FVP_Corstone_SSE-300 -q --cyclelimit 100000000 -f /workspace/host/cloud_ci_demo/rtx5_rv2/ARMCM55_config.txt /workspace/host/cloud_ci_demo/rtx5_rv2/Objects/CMSIS-RV2.axf | tee report.txt
+          cat report.txt | sed '1,/xml/d' | sed '1,/\/report/!d' > report.xml
+          xsltproc -o report.junit cloud_ci_demo/rtx5_rv2/validation.xsl report.xml
+      
+      - name : Analyse test report of CMSIS-RTOS2 Validation Tests
+        uses: ashley-taylor/junit-report-annotations-action@master
+        with:
+             access-token: ${{ secrets.GITHUB_TOKEN }}
+             path: report.junit
+        if: always()
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: stdio
+          path: report.xml
+        
+      - name: XUnit Viewer - Publish Report Details
+        id: xunit-viewer
+        uses: AutoModality/action-xunit-viewer@v1  
+        with: 
+          results: report.junit
+      
+      - name: Attach the report
+        uses: actions/upload-artifact@v1
+        with:
+          name: ${{ steps.xunit-viewer.outputs.report-name }}
+          path: ${{ steps.xunit-viewer.outputs.report-dir }}  
+

@@ -1,0 +1,1 @@
+file:///workspace/host/cloud_ci_demo/rtx5_rv2/ARM.CMSIS-RTOS2_Validation.1.0.0-dev14.pack
