@@ -25,7 +25,7 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
         with: 
-          repository: Arm-Debug/cloud_ci_demo_rv2
+          repository: Arm-Examples/cloud_ci_demo_rv2
           path: cloud_ci_demo
 
       - name: Install xsltproc
