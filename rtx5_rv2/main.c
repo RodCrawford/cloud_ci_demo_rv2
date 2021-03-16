@@ -18,7 +18,7 @@
   * @retval None
   */
 int main (void) {
-
+// Touch 
 #ifdef RTE_Compiler_EventRecorder
   // Initialize and start Event Recorder
   EventRecorderInitialize(EventRecordError, 1U);
